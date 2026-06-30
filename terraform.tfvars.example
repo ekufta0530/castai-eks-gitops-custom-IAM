@@ -7,3 +7,5 @@ vpc_id                    = "PLACEHOLDER"
 cluster_security_group_id = ["PLACEHOLDER1"]
 node_security_group_id    = ["PLACEHOLDER1]
 profile                   = "default" # default aws cli profile is used, override if needed.
+
+custom_instance_profile_arn

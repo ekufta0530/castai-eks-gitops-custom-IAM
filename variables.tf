@@ -71,3 +71,9 @@ variable "azs" {
   type        = list(string)
   default     = []
 }
+
+variable "custom_instance_profile_arn" {
+  type        = string
+  description = "ARN of an existing IAM instance profile to use for CAST AI nodes. If not provided, a new instance profile and role will be created."
+  default     = null
+}

@@ -10,13 +10,13 @@ output "cluster_token" {
 }
 
 output "instance_profile_role_arn" {
-  description = "Arn of created cast instance role"
-  value       = aws_iam_role.castai_instance_profile_role.arn
+  description = "ARN of the IAM role attached to the CAST AI instance profile (created or custom)"
+  value       = local.effective_node_role_arn
 }
 
 output "instance_profile_arn" {
-  description = "Arn of created cast instance profile"
-  value       = aws_iam_instance_profile.castai_instance_profile.arn
+  description = "ARN of the IAM instance profile used for CAST AI nodes (created or custom)"
+  value       = local.effective_instance_profile_arn
 }
 
 output "cast_role_arn" {

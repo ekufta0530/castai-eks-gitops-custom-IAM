@@ -24,7 +24,7 @@ locals {
 resource "aws_eks_access_entry" "access_entry" {
   count         = local.access_entry ? 1 : 0
   cluster_name  = data.aws_eks_cluster.existing_cluster.name
-  principal_arn = aws_iam_role.castai_instance_profile_role.arn
+  principal_arn = local.effective_node_role_arn
   type          = "EC2_LINUX"
 }
 
@@ -49,7 +49,7 @@ resource "castai_node_configuration" "default" {
       var.cluster_security_group_id,
       var.node_security_group_id
     ]
-    instance_profile_arn = aws_iam_instance_profile.castai_instance_profile.arn
+    instance_profile_arn = local.effective_instance_profile_arn
   }
 }
 

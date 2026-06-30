@@ -5,16 +5,30 @@ locals {
 
   instance_profile_role_name = "castai-eks-${local.resource_name_postfix}-node-role"
   castai_role_name           = "castai-eks-${local.resource_name_postfix}-cluster-role"
+
+  # When a custom instance profile ARN is provided, look it up to resolve its role.
+  # Otherwise, use the resources created below.
+  effective_instance_profile_arn = coalesce(var.custom_instance_profile_arn, try(aws_iam_instance_profile.castai_instance_profile[0].arn, null))
+  effective_node_role_arn        = try(data.aws_iam_instance_profile.custom[0].role_arn, aws_iam_role.castai_instance_profile_role[0].arn)
+  effective_node_role_name       = try(data.aws_iam_instance_profile.custom[0].role_name, aws_iam_role.castai_instance_profile_role[0].name)
 }
 
 data "aws_partition" "current" {}
 
+# Looks up the custom instance profile to resolve its associated IAM role.
+data "aws_iam_instance_profile" "custom" {
+  count = var.custom_instance_profile_arn != null ? 1 : 0
+  name  = element(split("/", var.custom_instance_profile_arn), length(split("/", var.custom_instance_profile_arn)) - 1)
+}
+
 ################################################################################
 # Instance profile — attached to CAST AI-provisioned EC2 nodes
+# Skipped when custom_instance_profile_arn is provided.
 ################################################################################
 
 resource "aws_iam_role" "castai_instance_profile_role" {
-  name = local.instance_profile_role_name
+  count = var.custom_instance_profile_arn == null ? 1 : 0
+  name  = local.instance_profile_role_name
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -29,18 +43,19 @@ resource "aws_iam_role" "castai_instance_profile_role" {
 }
 
 resource "aws_iam_instance_profile" "castai_instance_profile" {
-  name = local.instance_profile_role_name
-  role = aws_iam_role.castai_instance_profile_role.name
+  count = var.custom_instance_profile_arn == null ? 1 : 0
+  name  = local.instance_profile_role_name
+  role  = aws_iam_role.castai_instance_profile_role[0].name
 }
 
 resource "aws_iam_role_policy_attachment" "castai_instance_profile_policies" {
-  for_each = toset([
+  for_each = var.custom_instance_profile_arn == null ? toset([
     "arn:${local.partition}:iam::aws:policy/AmazonEKSWorkerNodePolicy",
     "arn:${local.partition}:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
     "arn:${local.partition}:iam::aws:policy/AmazonEKS_CNI_Policy",
     "arn:${local.partition}:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy",
-  ])
-  role       = aws_iam_role.castai_instance_profile_role.name
+  ]) : toset([])
+  role       = try(aws_iam_role.castai_instance_profile_role[0].name, "")
   policy_arn = each.value
 }
 
@@ -90,7 +105,7 @@ resource "aws_iam_role_policy" "castai_inline_policy" {
         Sid      = "PassRoleEC2"
         Action   = "iam:PassRole"
         Effect   = "Allow"
-        Resource = "arn:${local.partition}:iam::${local.account_id}:role/${aws_iam_role.castai_instance_profile_role.name}"
+        Resource = "arn:${local.partition}:iam::${local.account_id}:role/${local.effective_node_role_name}"
         Condition = {
           StringEquals = {
             "iam:PassedToService" = "ec2.amazonaws.com"
@@ -101,7 +116,7 @@ resource "aws_iam_role_policy" "castai_inline_policy" {
         Sid      = "PassRoleEKS"
         Action   = "iam:PassRole"
         Effect   = "Allow"
-        Resource = "arn:${local.partition}:iam::${local.account_id}:role/${aws_iam_role.castai_instance_profile_role.name}"
+        Resource = "arn:${local.partition}:iam::${local.account_id}:role/${local.effective_node_role_name}"
         Condition = {
           StringEquals = {
             "iam:PassedToService" = "eks.amazonaws.com"
