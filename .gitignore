@@ -1,0 +1,10 @@
+# Local variable files with secrets — use terraform.tfvars.example as the template
+tf.vars
+*.tfvars
+!terraform.tfvars.example
+
+# Terraform state — contains sensitive outputs (tokens, ARNs, IDs)
+terraform.tfstate
+terraform.tfstate.backup
+.terraform/
+.terraform.lock.hcl
